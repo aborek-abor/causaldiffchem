@@ -1,0 +1,26 @@
+# ADNI-derived data — restricted by ADNI Data Use Agreement, never commit
+ADNI_Gene_Expression_Profile.csv
+ADNI_Gene_Expression_Profile_DICT.csv
+ADNIMERGE.csv
+DXSUM*.csv
+BLCHANGE*.csv
+ad_real_expression.csv
+ad_annotated.csv
+ad_probe_to_gene.csv
+W_ad_real.npy
+v_disease_ad_real.npy
+v_healthy_ad_real.npy
+delta_v_ad_real.npy
+
+# TargetMol commercial compound libraries — not freely redistributable
+*.sdf
+
+# General working directories, not meant for the repo
+data/
+graphs/
+results/
+expression/
+models_v2/
+zinc250k.csv
+
+manuscript/
