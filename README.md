@@ -39,12 +39,6 @@ LICENSE            MIT
 | `filter_probes.py` | Removes leftover Affymetrix/Illumina probe-ID columns from expression files, keeping only gene-symbol columns | Explicitly includes `sarcoidosis2` in its disease list — the exact disease where an earlier verification attempt found unexplained probe-ID contamination in an intermediate file; this step plausibly explains that gap |
 | `fix_expression_normalisation.py` | Z-score normalizes expression files that are still raw-intensity or log2-scale | `Z_SCORE_MEAN_THRESHOLD = 1.5` matches Methods' stated normalization threshold exactly |
 
-**A correction to an earlier statement in this package's history:** `parse_geo_datasets.py` was removed from an earlier version of this package on the grounds that its output filenames didn't match the established naming convention. That rejection was based on the script's abbreviated docstring example list, not its actual `DATASETS` dictionary — which, read in full, does produce correctly-named output for all three GEO-sourced diseases in this manuscript. It and the two scripts above are restored here. This chain was run directly by the author to produce the manuscript's published results.
-
-**Excluded, with reasons that still stand:**
-- `annotate_probes.py`, `build_disease_scms.py` — internal NOTEARS implementations use `h(W) = sum(W²)`, not the `h(W) = tr(e^(W∘W)) − d` constraint Methods specifies; `build_disease_scms.py` additionally labels its own AD data "synthetic — from earlier."
-- `process_adni.py` — same wrong acyclicity formula, and its own final output instructs the user to run `train_causal.py`, the separate generative-model project.
-- `causal_conditioning.py`, `causal_dataset.py` — explicitly written for a DiGress/PyTorch diffusion-model pipeline (FiLM conditioning layers, GAT encoders), unrelated to this paper's do(·)-intervention scoring method.
 
 **Note on `notears_gpu.py` and `proper_notears.py`:** `proper_notears.py` opens with `from notears_gpu import notears_gpu as notears_proper`, then later defines its own local `def notears_proper(X, lambda1=0.05, max_iter=500, h_tol=1e-8)` (scipy-based). By ordinary Python name-binding rules, that later local definition overrides the earlier import — the script's actual call site (`notears_proper(X, lambda1=lambda1)`) therefore always resolves to the local CPU/scipy implementation, not the GPU one, regardless of whether `notears_gpu.py` is present. 
 
@@ -52,7 +46,7 @@ The published SCMs (all four disease networks, the edge counts and edge weights 
 
 ## Compound libraries
 
-`score_by_correction.py` requires `drug_library_index.json` — a metadata index (SMILES, name, MW, QED, logP, BBB-pass flag) for every compound across the FDA-approved, clinical-stage, and preclinical libraries. This file was missing from every earlier version of this package and is now included, directly verified rather than trusted on filename alone.
+`score_by_correction.py` requires `drug_library_index.json` — a metadata index (SMILES, name, MW, QED, logP, BBB-pass flag) for every compound across the FDA-approved, clinical-stage, and preclinical libraries.
 
 **Scripts that build this index:**
 - `add_preclinical.py` — its output `library` label (`'preclinical_compounds'`) matches `drug_library_index.json` and `score_by_correction.py` exactly.
