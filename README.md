@@ -54,11 +54,78 @@ The published SCMs (all four disease networks, the edge counts and edge weights 
 
 **The raw SDF source files** (TargetMol commercial compound libraries — FDA-approved, clinical, and preclinical sets) are not redistributed here, consistent with how raw GEO/ADNI data is handled below; they are commercially licensed, not freely redistributable data.
 
+## Reproducing the pipeline
+ 
+This section walks through the full sequence, in order, from raw inputs to final scored results. Each step names what it needs as input and what it produces as output, so you can confirm you have what's required before running it.
+ 
+### Stage 1 — Compound libraries (run once, not per disease)
+ 
+These build the compound metadata index that Stage 4 scores against.
+ 
+```bash
+python process_drug_libraries.py   # requires the FDA-approved and clinical-stage
+                                    # SDF files (TargetMol; not included — see
+                                    # "Compound libraries" above)
+python add_preclinical.py          # requires the preclinical SDF file
+```
+ 
+**Output:** `drug_library_index.json` — one metadata record (SMILES, name, molecular weight, QED, logP, BBB-pass flag) per compound, across all three libraries.
+ 
+### Stage 2 — Expression data (per disease)
+ 
+**MS, sarcoidosis, leishmaniasis** — built from public GEO data:
+ 
+```bash
+python parse_geo_datasets.py             # requires raw GEO series-matrix .gz files
+                                          # (GSE17048, GSE37912, GSE55664 — see Data
+                                          # section below for accessions)
+python filter_probes.py                  # removes leftover probe-ID columns
+python fix_expression_normalisation.py   # z-score normalizes expression values
+```
+ 
+**Output:** one `{disease}_expression.csv` per disease — samples as rows, genes as columns, with a `label` column marking each row `disease` or `control`.
+ 
+**AD** — cannot be reproduced from this repository. The source data (ADNI) requires independent registration and cannot be redistributed; see the Data section below for what this means in practice.
+ 
+### Stage 3 — Build the causal network (per disease)
+ 
+```bash
+python proper_notears.py --disease <name>
+```
+ 
+Replace `<name>` with `ms_blood`, `sarcoidosis2`, or `leishmaniasis2`. Reads the expression CSV from Stage 2; selects the 20 most variable genes; learns a directed causal network (structural causal model) over them via NOTEARS.
+ 
+**Output:** `W_<name>.npy` (the causal network's edge weights), `v_disease_<name>.npy` and `v_healthy_<name>.npy` (average expression in disease vs. healthy samples), and `<name>_scm_genes.txt` (which 20 genes were selected).
+ 
+### Stage 4 — Score and rank compounds (per disease)
+ 
+```bash
+python score_by_correction.py --disease <name> --mode all --top_k 20
+```
+ 
+Reads the SCM from Stage 3 and the compound index from Stage 1. For every compound, simulates its effect on the causal network and scores how far that intervention moves the network from the disease state toward the healthy state.
+ 
+**Output:** ranked CSV files, one per disease per library (FDA-approved, clinical-stage, preclinical), each row giving a compound's `net_correction`, `%H`, and `R` — the three metrics reported throughout the manuscript.
+ 
+**`--mode`** accepts `fda`, `clinical`, `preclinical`, `zinc`, or `all`. **`--top_k`** sets how many top-ranked compounds to report per library (default 20). **`--n_zinc`** sets the ZINC15 sample size when `--mode zinc` or `all` includes it (default 1000) — not applicable to this manuscript's reported results, which do not include a ZINC15 library.
+ 
+### Stage 5 — Export and validate (optional)
+ 
+```bash
+python export_scm_tables_v3.py         # exports labeled W matrices, cross-checked
+                                        # against published edge counts and weights
+python export_expression_vectors.py    # aggregates per-disease expression vectors
+                                        # into one combined CSV
+```
+ 
+This is how the figures and supplementary tables in this repository were produced from Stage 3's output; not required to reproduce the core scores themselves.
+ 
+
 ## Data
 
 Transcriptomic data are not redistributed here. See the manuscript's Data availability section for sources: ADNI (registration required), GEO accessions GSE17048 (MS), GSE37912 (sarcoidosis), GSE55664 (leishmaniasis).
 
-**ADNI data specifically is not included at any processing stage, including derived files.** This extends beyond the raw `ADNI_Gene_Expression_Profile.csv` and diagnosis files: a processed expression matrix derived from them (`ad_real_expression.csv`), with sample sizes matching the manuscript's published AD cohort (245 disease / 284 control) exactly, was made available during this project's verification process but is deliberately excluded from this package. ADNI's data use agreement restricts redistribution to parties who have themselves completed ADNI registration; a de-identified derivative built from restricted-access participant data is still subject to that restriction. Anyone reproducing the AD portion of this pipeline must independently register with ADNI and obtain the source data themselves.
+**ADNI data specifically is not included at any processing stage, including derived files.** This extends beyond the raw `ADNI_Gene_Expression_Profile.csv` and diagnosis files: a processed expression matrix derived from them (`ad_real_expression.csv`), with sample sizes matching the manuscript's published AD cohort (245 disease / 284 control) exactly, is deliberately excluded from this package. ADNI's data use agreement restricts redistribution to parties who have themselves completed ADNI registration; a de-identified derivative built from restricted-access participant data is still subject to that restriction. Anyone reproducing the AD portion of this pipeline must independently register with ADNI and obtain the source data themselves.
 
 **Note:** the raw-data preparation chain (`parse_geo_datasets.py` → `filter_probes.py` → `fix_expression_normalisation.py`) is included (see Code section above) and was run directly by the author to produce the manuscript's published MS, sarcoidosis, and leishmaniasis results.
 
